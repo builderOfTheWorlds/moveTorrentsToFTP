@@ -1,6 +1,7 @@
-.venv/
+    .venv/
 .idea/
 __pycache__/
 *.pyc
 *.log
 .env
+/file_transfer.log

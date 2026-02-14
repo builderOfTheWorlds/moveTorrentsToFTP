@@ -48,13 +48,15 @@ if ($removeVenv -eq "y") {
     }
 }
 
-$removeEnv = Read-Host "  Delete configuration (.env)? (y/N)"
+$removeEnv = Read-Host "  Delete configuration (.env and FTP_PASSWORD env var)? (y/N)"
 if ($removeEnv -eq "y") {
     $envFile = Join-Path $ProjectDir ".env"
     if (Test-Path $envFile) {
         Remove-Item -Path $envFile -Force
         Write-Host "  .env deleted."
     }
+    [System.Environment]::SetEnvironmentVariable("FTP_PASSWORD", $null, "Machine")
+    Write-Host "  FTP_PASSWORD environment variable removed."
 }
 
 $removeLogs = Read-Host "  Delete log files? (y/N)"

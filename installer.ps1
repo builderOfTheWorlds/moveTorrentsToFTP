@@ -57,20 +57,27 @@ if (Test-Path $envFile) {
 if (-not $skipEnv) {
     Write-Host ""
     $ftpUsername = Read-Host "  FTP Username"
-    $ftpPassword = Read-Host "  FTP Password"
+    $ftpPassword = Read-Host "  FTP Password" -AsSecureString
     $ftpLocalIp = Read-Host "  FTP Server IP"
     $ftpDestDir = Read-Host "  FTP Destination Dir (default: /opt/qbittorrent/loadDir/)"
     if ([string]::IsNullOrWhiteSpace($ftpDestDir)) { $ftpDestDir = "/opt/qbittorrent/loadDir/" }
     $watchDir = Read-Host "  Watch Directory (default: C:\Users\$env:USERNAME\Downloads)"
     if ([string]::IsNullOrWhiteSpace($watchDir)) { $watchDir = "C:\Users\$env:USERNAME\Downloads" }
 
-    @"
+    # Store password as system environment variable (not on disk)
+    $ftpPasswordPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
+        [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ftpPassword)
+    )
+    [System.Environment]::SetEnvironmentVariable("FTP_PASSWORD", $ftpPasswordPlain, "Machine")
+    Write-Host "  FTP_PASSWORD set as system environment variable."
+
+    $envContent = @"
 FTP_USERNAME=$ftpUsername
-FTP_PASSWORD=$ftpPassword
 FTP_LOCALIP=$ftpLocalIp
 FTP_DEST_DIR=$ftpDestDir
 WATCH_DIR=$watchDir
-"@ | Set-Content -Path $envFile -Encoding UTF8
+"@
+    [System.IO.File]::WriteAllText($envFile, $envContent, [System.Text.UTF8Encoding]::new($false))
 
     Write-Host "  .env written."
 }

@@ -20,7 +20,7 @@ Write-Host ""
 Write-Host "[1/3] Removing Windows service..." -ForegroundColor Yellow
 $existingService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($existingService) {
-    & $NssmExe stop $ServiceName 2>$null
+    & $NssmExe stop $ServiceName 2>&1 | Out-Null
     & $NssmExe remove $ServiceName confirm
     Write-Host "  Service removed."
 } else {

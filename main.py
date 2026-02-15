@@ -8,6 +8,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import ftplib
 import urllib.parse
+import bencodepy
 from dotenv import load_dotenv
 
 # Load .env file from the same directory as this script
@@ -24,9 +25,38 @@ MAX_RETRIES = 5  # Maximum retry attempts for failed transfers
 RETRY_DELAY = 2.0  # Seconds between retries
 WORKER_POLL_TIMEOUT = 1.0  # Seconds to wait when queue is empty
 
+# Tracker substrings that should be excluded from FTP transfer
+EXCLUDED_TRACKER_STRINGS = ["empornium"]
+
 # Global queue for file processing
 file_queue = Queue()
 shutdown_event = threading.Event()
+
+
+def has_excluded_tracker(filepath):
+    """Check if a torrent file contains a tracker matching any excluded string."""
+    try:
+        with open(filepath, 'rb') as f:
+            torrent_data = bencodepy.decode(f.read())
+
+        trackers = []
+        if b'announce' in torrent_data:
+            trackers.append(torrent_data[b'announce'].decode('utf-8', errors='replace'))
+        if b'announce-list' in torrent_data:
+            for tier in torrent_data[b'announce-list']:
+                for tracker in tier:
+                    trackers.append(tracker.decode('utf-8', errors='replace'))
+
+        for tracker in trackers:
+            tracker_lower = tracker.lower()
+            for excluded in EXCLUDED_TRACKER_STRINGS:
+                if excluded in tracker_lower:
+                    logging.info(f"Excluded tracker matched: '{excluded}' found in '{tracker}'")
+                    return True
+        return False
+    except Exception as e:
+        logging.error(f"Failed to parse torrent file for tracker check: {filepath}: {e}")
+        return False
 
 
 class FTPWorker(threading.Thread):
@@ -124,6 +154,12 @@ class FTPWorker(threading.Thread):
             # Wait for file to be ready
             if not self.wait_for_file_ready(filename):
                 logging.error(f"File not ready or doesn't exist: {filename}")
+                file_queue.task_done()
+                continue
+
+            # Check for excluded trackers
+            if has_excluded_tracker(filename):
+                logging.info(f"Skipping file with excluded tracker: {filename}")
                 file_queue.task_done()
                 continue
 
